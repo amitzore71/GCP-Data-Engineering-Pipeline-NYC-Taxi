@@ -1,0 +1,21 @@
+﻿name: taxi_analytics
+version: '1.0.0'
+config-version: 2
+profile: taxi_analytics
+
+model-paths: ["models"]
+analysis-paths: ["analysis"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+
+clean-targets:
+  - "target"
+  - "dbt_modules"
+
+models:
+  taxi_analytics:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table

@@ -1,0 +1,25 @@
+﻿# Python
+__pycache__/
+*.pyc
+.venv/
+.venv*/
+.env
+.env.*
+
+# dbt
+dbt/target/
+dbt/dbt_modules/
+dbt/logs/
+
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+infra/terraform/.terraform.lock.hcl
+
+# Dataflow / Beam
+*.beam/
+
+# OS
+.DS_Store
+Thumbs.db

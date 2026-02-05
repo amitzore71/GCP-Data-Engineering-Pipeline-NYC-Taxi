@@ -1,0 +1,7 @@
+﻿version: 2
+
+sources:
+  - name: taxi
+    schema: "{{ env_var('BQ_DATASET', 'taxi_analytics') }}"
+    tables:
+      - name: clean_trips

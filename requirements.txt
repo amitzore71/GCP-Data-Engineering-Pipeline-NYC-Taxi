@@ -1,0 +1,9 @@
+﻿apache-beam[gcp]>=2.50,<2.60
+google-cloud-storage>=2.10,<3.0
+pandas>=2.0,<3.0
+pandas-gbq>=0.20,<0.25
+great_expectations>=0.17,<0.19
+dbt-bigquery>=1.7,<1.9
+pyarrow>=12,<16
+pytest>=7.0,<9.0
+requests>=2.31,<3.0
