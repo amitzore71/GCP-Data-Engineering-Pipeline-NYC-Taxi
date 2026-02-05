@@ -104,6 +104,7 @@ variable "composer_pypi_packages" {
   description = "Extra PyPI packages for Composer"
   default = {
     "apache-beam[gcp]" = ">=2.50,<2.60"
+    "google-cloud-storage" = ">=2.10,<3.0"
     "pandas"           = ">=2.0,<3.0"
     "pandas-gbq"       = ">=0.20,<0.25"
     "great_expectations" = ">=0.17,<0.19"

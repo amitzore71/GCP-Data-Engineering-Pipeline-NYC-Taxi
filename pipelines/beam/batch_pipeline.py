@@ -4,9 +4,10 @@ import io
 import logging
 
 import apache_beam as beam
+import pyarrow as pa
 from apache_beam.io import fileio
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
-from apache_beam.io.parquetio import ReadFromParquet
+from apache_beam.io.parquetio import ReadFromParquet, WriteToParquet
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
@@ -43,6 +44,30 @@ BQ_CLEAN_SCHEMA = (
     "airport_fee:FLOAT"
 )
 
+PARQUET_CLEAN_SCHEMA = pa.schema(
+    [
+        ("vendor_id", pa.int64()),
+        ("pickup_datetime", pa.timestamp("us")),
+        ("dropoff_datetime", pa.timestamp("us")),
+        ("passenger_count", pa.int64()),
+        ("trip_distance", pa.float64()),
+        ("ratecode_id", pa.int64()),
+        ("store_and_fwd_flag", pa.string()),
+        ("pu_location_id", pa.int64()),
+        ("do_location_id", pa.int64()),
+        ("payment_type", pa.int64()),
+        ("fare_amount", pa.float64()),
+        ("extra", pa.float64()),
+        ("mta_tax", pa.float64()),
+        ("tip_amount", pa.float64()),
+        ("tolls_amount", pa.float64()),
+        ("improvement_surcharge", pa.float64()),
+        ("total_amount", pa.float64()),
+        ("congestion_surcharge", pa.float64()),
+        ("airport_fee", pa.float64()),
+    ]
+)
+
 
 def read_csv_file(readable_file):
     with readable_file.open() as handle:
@@ -62,14 +87,25 @@ def run(argv=None):
         choices=["csv", "parquet"],
         help="Input file format",
     )
-    parser.add_argument("--output_dataset", required=True, help="BigQuery dataset")
+    parser.add_argument(
+        "--output_dataset",
+        required=False,
+        help="BigQuery dataset (required if writing to BigQuery)",
+    )
     parser.add_argument("--output_project", default=None, help="BigQuery project")
     parser.add_argument("--raw_table", default="raw_trips")
     parser.add_argument("--clean_table", default="clean_trips")
     parser.add_argument("--write_raw", action="store_true")
+    parser.add_argument("--output_clean_path", default=None, help="GCS prefix for clean parquet output")
+    parser.add_argument("--write_clean_to_bq", action="store_true")
     parser.add_argument("--bq_temp_location", default=None)
 
     args, beam_args = parser.parse_known_args(argv)
+
+    if not args.output_clean_path and not args.write_clean_to_bq:
+        raise ValueError("Provide --output_clean_path or --write_clean_to_bq")
+    if (args.write_raw or args.write_clean_to_bq) and not args.output_dataset:
+        raise ValueError("--output_dataset is required when writing to BigQuery")
 
     pipeline_options = PipelineOptions(beam_args)
     pipeline_options.view_as(SetupOptions).save_main_session = True
@@ -79,13 +115,16 @@ def run(argv=None):
     if not project:
         raise ValueError("GCP project is required via --project or --output_project")
 
-    bq_temp_location = args.bq_temp_location or gcp_options.temp_location
-
-    raw_table_spec = f"{project}:{args.output_dataset}.{args.raw_table}"
-    clean_table_spec = f"{project}:{args.output_dataset}.{args.clean_table}"
+    if args.write_raw or args.write_clean_to_bq:
+        bq_temp_location = args.bq_temp_location or gcp_options.temp_location
+        raw_table_spec = f"{project}:{args.output_dataset}.{args.raw_table}"
+        clean_table_spec = f"{project}:{args.output_dataset}.{args.clean_table}"
 
     logging.info("Reading input: %s", args.input)
-    logging.info("Output dataset: %s", args.output_dataset)
+    if args.output_dataset:
+        logging.info("Output dataset: %s", args.output_dataset)
+    if args.output_clean_path:
+        logging.info("Clean output path: %s", args.output_clean_path)
 
     with beam.Pipeline(options=pipeline_options) as pipeline:
         if args.file_format == "parquet":
@@ -119,18 +158,30 @@ def run(argv=None):
                 )
             )
 
-        _ = (
-            clean_rows
-            | "WriteCleanToBQ"
-            >> WriteToBigQuery(
-                clean_table_spec,
-                schema=BQ_CLEAN_SCHEMA,
-                method=WriteToBigQuery.Method.FILE_LOADS,
-                custom_gcs_temp_location=bq_temp_location,
-                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-                write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+        if args.output_clean_path:
+            _ = (
+                clean_rows
+                | "WriteCleanToParquet"
+                >> WriteToParquet(
+                    file_path_prefix=args.output_clean_path,
+                    schema=PARQUET_CLEAN_SCHEMA,
+                    file_name_suffix=".parquet",
+                )
             )
-        )
+
+        if args.write_clean_to_bq:
+            _ = (
+                clean_rows
+                | "WriteCleanToBQ"
+                >> WriteToBigQuery(
+                    clean_table_spec,
+                    schema=BQ_CLEAN_SCHEMA,
+                    method=WriteToBigQuery.Method.FILE_LOADS,
+                    custom_gcs_temp_location=bq_temp_location,
+                    create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+                    write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+                )
+            )
 
 
 if __name__ == "__main__":

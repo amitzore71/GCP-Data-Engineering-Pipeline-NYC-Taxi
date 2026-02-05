@@ -1,75 +1,80 @@
 ﻿# GCP Data Engineering Pipeline — NYC Taxi
 
-This project is a full end-to-end data engineering pipeline built on GCP using real public NYC Taxi data. It covers everything from raw data ingestion to analytics and ML, with proper orchestration and data quality checks in between. The goal is to show how production-grade data systems are actually built, not just toy demos.
+A production-grade, end-to-end data engineering pipeline built on Google Cloud Platform using real NYC Taxi public data.
 
-## What This Shows
+This project demonstrates how modern data platforms are actually designed in the real world — not toy examples. It covers ingestion, large-scale processing, data quality, analytics modeling, ML inside the warehouse, and full orchestration.
 
-This project demonstrates how to:
+---
 
-- Ingest raw files into Google Cloud Storage
-- Process large batch data using Apache Beam on Dataflow
-- Enforce data quality with Great Expectations
-- Build analytics models using dbt
-- Train and run ML models directly inside BigQuery using BigQuery ML
-- Orchestrate the entire workflow with Cloud Composer (Airflow)
+## What I Built
 
-In short: raw data → clean data → analytics → ML → dashboards, all automated.
+This project implements a complete data platform:
+
+- Raw data ingestion into Google Cloud Storage
+- Large-scale batch processing using Apache Beam on Dataflow
+- Data quality validation using Great Expectations
+- Analytics modeling using dbt
+- ML model training and predictions using BigQuery ML
+- End-to-end orchestration using Cloud Composer (Airflow)
+- Automated infrastructure using Terraform
+
+**End-to-end flow:**  
+Raw data → Clean data → Analytics models → ML → Dashboards (fully automated)
+
+---
 
 ## Architecture (High Level)
 
-Flow:
+**Flow:**
 
-Data Source (NYC Taxi)  
-→ GCS (raw layer)  
-→ Dataflow (transform + load)  
-→ BigQuery (raw + clean + marts)  
+NYC Taxi Data Source  
+→ Google Cloud Storage (raw layer)  
+→ Dataflow (transform)  
+→ Google Cloud Storage (processed clean parquet)  
 → Great Expectations (data quality checks)  
+→ BigQuery (clean, marts)  
 → dbt (analytics layer)  
 → BigQuery ML (model training + predictions)  
 → Looker Studio (dashboards)  
 → Cloud Composer (orchestration)
 
-Refer to `docs/architecture.md` for the detailed architecture diagram.
+Detailed architecture is available in `docs/architecture.md`.
 
-## Why This Project Is Solid for a Portfolio
-
-- Uses real-world scale data (not fake CSVs)
-- Production-style pipeline (infra, orchestration, data quality)
-- Covers batch ingestion, transformation, analytics, and ML
-- Shows cloud-native tooling (GCP) used in real companies
-- Clean separation of raw, clean, and analytics layers
-- End-to-end ownership: infra → pipelines → models → dashboards
+---
 
 ## Tech Stack
 
-- Cloud Storage – raw data lake
-- Apache Beam + Dataflow – batch processing
-- BigQuery – data warehouse
-- Great Expectations – data quality
-- dbt – analytics modeling
-- BigQuery ML – model training and inference
-- Cloud Composer (Airflow) – orchestration
-- Terraform – infrastructure
-- Looker Studio – reporting
+- Google Cloud Storage
+- Apache Beam + Dataflow
+- BigQuery
+- Great Expectations
+- dbt
+- BigQuery ML
+- Cloud Composer (Airflow)
+- Terraform
+- Looker Studio
 
-## What You Can Talk About in Interviews
+---
 
-You can confidently discuss:
+## Key Engineering Highlights
 
-- Designing bronze/silver/gold style layers in BigQuery
-- Handling schema changes in upstream taxi datasets
-- Choosing Dataflow over SQL-only transformations
-- Enforcing data quality before analytics runs
-- End-to-end orchestration in Airflow
-- Using BigQuery ML to avoid unnecessary data movement
-- Cost, performance, and scaling tradeoffs on GCP
+- Designed multi-layer data architecture (raw, clean, marts)
+- Implemented production-style batch processing on Dataflow
+- Enforced data quality checks before analytics and ML
+- Built analytics-ready models using dbt
+- Trained ML models directly inside BigQuery (no data movement)
+- Orchestrated the full pipeline using Airflow
+- Provisioned cloud infrastructure using Terraform
+- Optimized BigQuery tables using partitioning and clustering
 
-## Real-World Extensions (Optional)
+---
 
-If you want to push this further:
+## Future Enhancements
 
-- Add CDC or streaming ingestion with Pub/Sub
-- Add data freshness SLAs and alerts in Airflow
+- Add streaming ingestion using Pub/Sub
+- Implement data freshness SLAs and alerting
 - Add anomaly detection on fares and trip duration
-- Add cost optimization using partitioning and clustering in BigQuery
-- Add feature store style tables for ML workloads
+- Introduce feature-store style tables for ML workloads
+- Add cost monitoring and automated budget alerts
+
+---

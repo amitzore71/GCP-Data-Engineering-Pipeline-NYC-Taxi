@@ -7,6 +7,7 @@ from airflow.operators.bash import BashOperator
 PROJECT_ID = os.environ.get("GCP_PROJECT") or os.environ.get("PROJECT_ID")
 REGION = os.environ.get("REGION", "us-central1")
 RAW_BUCKET = os.environ.get("RAW_BUCKET")
+PROCESSED_BUCKET = os.environ.get("PROCESSED_BUCKET")
 BQ_DATASET = os.environ.get("BQ_DATASET", "taxi_analytics")
 DATAFLOW_TEMP = os.environ.get("DATAFLOW_TEMP")
 DATAFLOW_STAGING = os.environ.get("DATAFLOW_STAGING")
@@ -71,7 +72,7 @@ with DAG(
             "--input gs://{raw_bucket}/raw/nyc_taxi/yellow_tripdata_*.{file_format} "
             "--file_format {file_format} "
             "--output_dataset {dataset} "
-            "--write_raw "
+            "--output_clean_path gs://{processed_bucket}/clean/{{{{ ds_nodash }}}}/clean_trips "
             "--runner DataflowRunner "
             "--project {project} "
             "--region {region} "
@@ -90,6 +91,7 @@ with DAG(
             temp_bucket=DATAFLOW_TEMP,
             staging_bucket=DATAFLOW_STAGING,
             dataflow_sa=DATAFLOW_SA,
+            processed_bucket=PROCESSED_BUCKET,
         ),
     )
 
@@ -97,10 +99,20 @@ with DAG(
         task_id="great_expectations",
         bash_command=(
             "python {dags}/quality/run_ge.py "
-            "--project {project} "
-            "--dataset {dataset} "
-            "--table clean_trips"
-        ).format(dags=DAGS_HOME, project=PROJECT_ID, dataset=BQ_DATASET),
+            "--gcs-prefix gs://{processed_bucket}/clean/{{{{ ds_nodash }}}}/clean_trips "
+            "--max-rows 50000 "
+            "--max-files 5"
+        ).format(dags=DAGS_HOME, processed_bucket=PROCESSED_BUCKET),
+    )
+
+    load_clean_to_bq = BashOperator(
+        task_id="load_clean_to_bq",
+        bash_command=(
+            "bq load --source_format=PARQUET "
+            "--project_id {project} "
+            "{project}:{dataset}.clean_trips "
+            "gs://{processed_bucket}/clean/{{{{ ds_nodash }}}}/clean_trips-*.parquet"
+        ).format(project=PROJECT_ID, dataset=BQ_DATASET, processed_bucket=PROCESSED_BUCKET),
     )
 
     dbt_run = BashOperator(
@@ -109,6 +121,15 @@ with DAG(
             "cd {dags}/dbt && "
             "dbt deps --profiles-dir . && "
             "dbt run --profiles-dir . --target {target}"
+        ).format(dags=DAGS_HOME, target=DBT_TARGET),
+    )
+
+    dbt_test = BashOperator(
+        task_id="dbt_test",
+        bash_command=(
+            "cd {dags}/dbt && "
+            "dbt deps --profiles-dir . && "
+            "dbt test --profiles-dir . --target {target}"
         ).format(dags=DAGS_HOME, target=DBT_TARGET),
     )
 
@@ -131,7 +152,9 @@ with DAG(
         ingest
         >> dataflow
         >> ge_validate
+        >> load_clean_to_bq
         >> dbt_run
+        >> dbt_test
         >> bqml_train
         >> bqml_evaluate
         >> bqml_predict
